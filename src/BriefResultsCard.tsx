@@ -85,7 +85,7 @@ function ProgressBar({ label, value, color }: { label: string; value: number; co
 }
 
 function briefToPlainText(data: BriefData): string {
-  return [
+  const lines = [
     'COMPETITIVE BRIEF',
     '=================',
     '',
@@ -101,9 +101,22 @@ function briefToPlainText(data: BriefData): string {
     'THE GAP',
     data.theGap,
     '',
-    'YOUR RECOMMENDED ANGLE',
-    data.recommendedAngle,
-  ].join('\n');
+  ];
+  if (data.analytics) {
+    lines.push(
+      'GAP & OPPORTUNITY ANALYTICS',
+      `  Opportunity Score: ${data.analytics.opportunityScore}/100`,
+      `  Gap Severity: ${data.analytics.gapSeverity}/100`,
+      `  Market Saturation: ${data.analytics.marketSaturation}/100`,
+      `  Confidence Level: ${data.analytics.confidenceLevel}/100`,
+      `  Competitors: ${data.analytics.competitorCount}`,
+      `  Entry Barrier: ${data.analytics.entryBarrier}`,
+      `  Time to Market: ${data.analytics.timeToMarket}`,
+      '',
+    );
+  }
+  lines.push('YOUR RECOMMENDED ANGLE', data.recommendedAngle);
+  return lines.join('\n');
 }
 
 export default function BriefResultsCard({ data }: { data: BriefData }) {
@@ -116,6 +129,46 @@ export default function BriefResultsCard({ data }: { data: BriefData }) {
   };
 
   const handleDownloadPdf = () => {
+    const analyticsHtml = data.analytics ? `
+        <h2>Gap &amp; Opportunity Analytics</h2>
+        <div class="analytics-grid">
+          <div class="metric-card metric-teal">
+            <div class="metric-value">${data.analytics.opportunityScore}<span class="metric-suffix">/100</span></div>
+            <div class="metric-label">Opportunity Score</div>
+            <div class="metric-bar"><div class="metric-bar-fill bar-teal" style="width: ${data.analytics.opportunityScore}%"></div></div>
+          </div>
+          <div class="metric-card metric-amber">
+            <div class="metric-value">${data.analytics.gapSeverity}<span class="metric-suffix">/100</span></div>
+            <div class="metric-label">Gap Severity</div>
+            <div class="metric-bar"><div class="metric-bar-fill bar-amber" style="width: ${data.analytics.gapSeverity}%"></div></div>
+          </div>
+          <div class="metric-card metric-rose">
+            <div class="metric-value">${data.analytics.marketSaturation}<span class="metric-suffix">/100</span></div>
+            <div class="metric-label">Market Saturation</div>
+            <div class="metric-bar"><div class="metric-bar-fill bar-rose" style="width: ${data.analytics.marketSaturation}%"></div></div>
+          </div>
+          <div class="metric-card metric-blue">
+            <div class="metric-value">${data.analytics.confidenceLevel}<span class="metric-suffix">/100</span></div>
+            <div class="metric-label">Confidence Level</div>
+            <div class="metric-bar"><div class="metric-bar-fill bar-blue" style="width: ${data.analytics.confidenceLevel}%"></div></div>
+          </div>
+        </div>
+        <div class="secondary-metrics">
+          <div class="secondary-item">
+            <span class="secondary-label">Competitors</span>
+            <span class="secondary-value">${data.analytics.competitorCount}</span>
+          </div>
+          <div class="secondary-item">
+            <span class="secondary-label">Entry Barrier</span>
+            <span class="secondary-value barrier-${data.analytics.entryBarrier.toLowerCase()}">${escapeHtml(data.analytics.entryBarrier)}</span>
+          </div>
+          <div class="secondary-item">
+            <span class="secondary-label">Time to Market</span>
+            <span class="secondary-value">${escapeHtml(data.analytics.timeToMarket)}</span>
+          </div>
+        </div>
+    ` : '';
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -136,6 +189,28 @@ export default function BriefResultsCard({ data }: { data: BriefData }) {
           .gap-box p { color: #78350f; font-weight: 500; }
           .angle-box { background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 16px 20px; margin-top: 8px; }
           .angle-box p { color: #134e4a; }
+          .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; margin-bottom: 16px; }
+          .metric-card { border-radius: 10px; padding: 14px 16px; text-align: center; }
+          .metric-teal { background: #f0fdfa; border: 1px solid #99f6e4; }
+          .metric-amber { background: #fffbeb; border: 1px solid #fde68a; }
+          .metric-rose { background: #fff1f2; border: 1px solid #fecdd3; }
+          .metric-blue { background: #eff6ff; border: 1px solid #bfdbfe; }
+          .metric-value { font-size: 24px; font-weight: 700; color: #1a1a1a; }
+          .metric-suffix { font-size: 12px; font-weight: 400; color: #6b7280; }
+          .metric-label { font-size: 11px; color: #6b7280; margin-top: 2px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
+          .metric-bar { height: 6px; border-radius: 3px; background: #e5e7eb; margin-top: 8px; overflow: hidden; }
+          .metric-bar-fill { height: 100%; border-radius: 3px; }
+          .bar-teal { background: #14b8a6; }
+          .bar-amber { background: #f59e0b; }
+          .bar-rose { background: #f43f5e; }
+          .bar-blue { background: #3b82f6; }
+          .secondary-metrics { display: flex; gap: 12px; margin-bottom: 8px; }
+          .secondary-item { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; text-align: center; }
+          .secondary-label { display: block; font-size: 11px; color: #6b7280; font-weight: 500; margin-bottom: 4px; }
+          .secondary-value { display: block; font-size: 15px; font-weight: 700; color: #1e293b; }
+          .barrier-low { color: #16a34a; }
+          .barrier-medium { color: #d97706; }
+          .barrier-high { color: #dc2626; }
           @media print { body { padding: 24px; } }
         </style>
       </head>
@@ -158,6 +233,8 @@ export default function BriefResultsCard({ data }: { data: BriefData }) {
 
         <h2>The Gap</h2>
         <div class="gap-box"><p>${escapeHtml(data.theGap)}</p></div>
+
+        ${analyticsHtml}
 
         <h2>Your Recommended Angle</h2>
         <div class="angle-box"><p>${escapeHtml(data.recommendedAngle)}</p></div>
