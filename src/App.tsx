@@ -1,8 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Radar, ArrowRight, Globe, RotateCcw } from 'lucide-react';
 import BriefResultsCard, { type BriefData } from './BriefResultsCard';
 import HistoryPanel, { type BriefHistoryEntry } from './HistoryPanel';
 import { supabase, sessionId } from './supabaseClient';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+async function scrapeUrls(urls: string[]): Promise<{ url: string; markdown: string | null; error: string | null }[]> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/scrape-urls`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ urls }),
+  });
+  if (!response.ok) {
+    throw new Error(`Scrape failed: ${response.status}`);
+  }
+  const data = await response.json();
+  return data.results || [];
+}
 
 const SAMPLE_BRIEF: BriefData = {
   landscapeSummary:
@@ -27,7 +46,7 @@ const SAMPLE_BRIEF: BriefData = {
     'Position directly against the "enterprise tax" by launching a mid-market plan with flat per-seat pricing, no feature gating, and a public pricing calculator. Lead messaging with "Enterprise-grade collaboration without the enterprise price tag" and target Series A–C companies with 30–80 employees who are currently on Notion\'s Team plan but frustrated by per-seat cost scaling.',
 };
 
-function LoadingState() {
+function LoadingState({ message }: { message: string }) {
   return (
     <div className="w-full max-w-2xl mx-auto mt-12 animate-fade-in">
       <div className="flex flex-col items-center gap-6">
@@ -55,7 +74,7 @@ function LoadingState() {
         </div>
 
         <p className="text-sm text-slate-400 mt-2">
-          Analyzing competitors, gathering insights, and building your brief...
+          {message}
         </p>
       </div>
     </div>
@@ -72,6 +91,8 @@ function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<BriefHistoryEntry[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState('Analyzing competitors, gathering insights, and building your brief...');
+  const abortRef = useRef(false);
 
   const fetchHistory = useCallback(async () => {
     const { data } = await supabase
@@ -143,19 +164,42 @@ function App() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim()) return;
     setAppState('loading');
     setActiveHistoryId(null);
+    abortRef.current = false;
+
+    const parsedUrls = urls
+      .split(/[,\s]+/)
+      .map((u) => u.trim())
+      .filter((u) => u.startsWith('http'));
+
+    if (parsedUrls.length > 0) {
+      setLoadingMessage('Scraping competitor URLs with Firecrawl...');
+      try {
+        await scrapeUrls(parsedUrls);
+        if (abortRef.current) return;
+        setLoadingMessage('Building your competitive brief...');
+      } catch {
+        setLoadingMessage('Could not scrape URLs, building brief from available data...');
+      }
+    } else {
+      setLoadingMessage('Analyzing competitors, gathering insights, and building your brief...');
+    }
+
+    if (abortRef.current) return;
     setTimeout(() => {
+      if (abortRef.current) return;
       setBriefData(SAMPLE_BRIEF);
       setAppState('results');
       saveBrief(question, urls, SAMPLE_BRIEF);
-    }, 4000);
+    }, 2000);
   };
 
   const handleReset = () => {
+    abortRef.current = true;
     setAppState('input');
     setBriefData(null);
     setQuestion('');
@@ -253,7 +297,7 @@ function App() {
             </form>
           )}
 
-          {appState === 'loading' && <LoadingState />}
+          {appState === 'loading' && <LoadingState message={loadingMessage} />}
 
           {appState === 'results' && briefData && (
             <div className="space-y-6">
