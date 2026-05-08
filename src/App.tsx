@@ -265,6 +265,7 @@ function App() {
                   id="question"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
+                  required
                   placeholder="e.g. How does Notion's pricing compare to Coda and Slite for teams of 50+? What are their key differentiators?"
                   className="w-full min-h-[140px] pl-12 pr-4 py-3.5 rounded-xl border border-slate-600 bg-slate-900/60 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 resize-y transition-all text-[15px] leading-relaxed"
                 />
