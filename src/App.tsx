@@ -23,28 +23,23 @@ async function scrapeUrls(urls: string[]): Promise<{ url: string; markdown: stri
   return data.results || [];
 }
 
-const SAMPLE_BRIEF: BriefData = {
-  landscapeSummary:
-    'The collaborative workspace market is mature and crowded, dominated by three major players competing on flexibility, integrations, and AI-powered features. Pricing strategies vary significantly — from freemium-heavy models designed to hook individual users, to enterprise-first approaches that gate advanced features behind annual contracts. The market is shifting toward AI-native workflows, with all major players racing to embed generative AI into their core editing and project management experiences.',
-  whoIsPlaying: [
-    'Notion',
-    'Coda',
-    'Slite',
-    'Confluence',
-    'Clickup',
-    'Monday.com',
-  ],
-  dominantMessagingThemes: [
-    '"All-in-one workspace" — consolidating docs, wikis, and project management into a single tool',
-    '"AI-first" — embedding AI assistants directly into the writing and planning flow',
-    '"Built for scale" — emphasizing enterprise SSO, permissions, and audit logs',
-    '"Replace your stack" — positioning against multiple point solutions to reduce SaaS fatigue',
-  ],
-  theGap:
-    'No competitor is solving the "team of 50" pricing cliff. Notion charges per seat with no volume discount below 100 users. Coda gates databases behind Business tier. Slite has no mid-market plan at all. Teams of 30–80 people are either overpaying for enterprise features they don\'t need or stitching together free-tier limitations. There is a clear opening for a workspace tool that offers transparent, predictable mid-market pricing with the collaborative depth these teams actually require.',
-  recommendedAngle:
-    'Position directly against the "enterprise tax" by launching a mid-market plan with flat per-seat pricing, no feature gating, and a public pricing calculator. Lead messaging with "Enterprise-grade collaboration without the enterprise price tag" and target Series A–C companies with 30–80 employees who are currently on Notion\'s Team plan but frustrated by per-seat cost scaling.',
-};
+async function generateBrief(question: string, scrapedContent: string | null): Promise<BriefData> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-brief`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ question, scrapedContent }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `Generate failed: ${response.status}`);
+  }
+  const data = await response.json();
+  return data.brief;
+}
+
 
 function LoadingState({ message }: { message: string }) {
   return (
@@ -171,6 +166,8 @@ function App() {
     setActiveHistoryId(null);
     abortRef.current = false;
 
+    let scrapedContent: string | null = null;
+
     const parsedUrls = urls
       .split(/[,\s]+/)
       .map((u) => u.trim())
@@ -179,23 +176,33 @@ function App() {
     if (parsedUrls.length > 0) {
       setLoadingMessage('Scraping competitor URLs with Firecrawl...');
       try {
-        await scrapeUrls(parsedUrls);
+        const results = await scrapeUrls(parsedUrls);
         if (abortRef.current) return;
-        setLoadingMessage('Building your competitive brief...');
+        scrapedContent = results
+          .filter((r) => r.markdown)
+          .map((r) => `--- ${r.url} ---\n${r.markdown}`)
+          .join('\n\n') || null;
       } catch {
-        setLoadingMessage('Could not scrape URLs, building brief from available data...');
+        // continue without scraped content
       }
-    } else {
-      setLoadingMessage('Analyzing competitors, gathering insights, and building your brief...');
     }
 
     if (abortRef.current) return;
-    setTimeout(() => {
+    setLoadingMessage('Generating your competitive brief with AI...');
+
+    try {
+      const brief = await generateBrief(question, scrapedContent);
       if (abortRef.current) return;
-      setBriefData(SAMPLE_BRIEF);
+      setBriefData(brief);
       setAppState('results');
-      saveBrief(question, urls, SAMPLE_BRIEF);
-    }, 2000);
+      saveBrief(question, urls, brief);
+    } catch (err) {
+      if (abortRef.current) return;
+      setLoadingMessage(`Error: ${(err as Error).message}. Please try again.`);
+      setTimeout(() => {
+        if (!abortRef.current) setAppState('input');
+      }, 3000);
+    }
   };
 
   const handleReset = () => {
