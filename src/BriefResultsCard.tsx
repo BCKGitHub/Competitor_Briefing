@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { Map, Users, MessageSquare, Lightbulb, Target, Copy, Check, Download } from 'lucide-react';
+import { Map, Users, MessageSquare, Lightbulb, Target, Copy, Check, Download, TrendingUp, BarChart3, Shield, Clock } from 'lucide-react';
+
+export interface BriefAnalytics {
+  marketSaturation: number;
+  opportunityScore: number;
+  competitorCount: number;
+  gapSeverity: number;
+  entryBarrier: string;
+  timeToMarket: string;
+  confidenceLevel: number;
+}
 
 export interface BriefData {
   landscapeSummary: string;
@@ -7,6 +17,7 @@ export interface BriefData {
   dominantMessagingThemes: string[];
   theGap: string;
   recommendedAngle: string;
+  analytics?: BriefAnalytics;
 }
 
 function SectionHeader({ icon: Icon, title, accent }: { icon: React.ElementType; title: string; accent?: boolean }) {
@@ -27,6 +38,50 @@ function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+const colorMap = {
+  teal: { bg: 'bg-teal-900/30', border: 'border-teal-700/40', text: 'text-teal-300', bar: 'bg-teal-500' },
+  amber: { bg: 'bg-amber-900/30', border: 'border-amber-700/40', text: 'text-amber-300', bar: 'bg-amber-500' },
+  rose: { bg: 'bg-rose-900/30', border: 'border-rose-700/40', text: 'text-rose-300', bar: 'bg-rose-500' },
+  blue: { bg: 'bg-blue-900/30', border: 'border-blue-700/40', text: 'text-blue-300', bar: 'bg-blue-500' },
+} as const;
+
+function MetricCard({ label, value, suffix, color, icon: Icon }: {
+  label: string;
+  value: number;
+  suffix: string;
+  color: keyof typeof colorMap;
+  icon: React.ElementType;
+}) {
+  const c = colorMap[color];
+  return (
+    <div className={`p-3 rounded-xl ${c.bg} border ${c.border} text-center transition-transform hover:scale-105`}>
+      <Icon className={`w-4 h-4 ${c.text} mx-auto mb-1.5`} />
+      <div className={`text-2xl font-bold ${c.text} leading-none`}>
+        {value}<span className="text-xs font-normal opacity-70">{suffix}</span>
+      </div>
+      <div className="text-[11px] text-slate-400 mt-1.5 font-medium">{label}</div>
+    </div>
+  );
+}
+
+function ProgressBar({ label, value, color }: { label: string; value: number; color: keyof typeof colorMap }) {
+  const c = colorMap[color];
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-slate-400">{label}</span>
+        <span className={`text-xs font-bold ${c.text}`}>{value}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${c.bar} transition-all duration-1000 ease-out`}
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function briefToPlainText(data: BriefData): string {
@@ -218,7 +273,82 @@ export default function BriefResultsCard({ data }: { data: BriefData }) {
             </div>
           </section>
 
-          {/* 5. Your Recommended Angle */}
+          {/* 5. Analytics — Gap & Opportunity Stats */}
+          {data.analytics && (
+            <section>
+              <SectionHeader icon={BarChart3} title="Gap & Opportunity Analytics" accent />
+              <div className="ml-10 space-y-5">
+                {/* Primary metrics row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <MetricCard
+                    label="Opportunity Score"
+                    value={data.analytics.opportunityScore}
+                    suffix="/100"
+                    color="teal"
+                    icon={TrendingUp}
+                  />
+                  <MetricCard
+                    label="Gap Severity"
+                    value={data.analytics.gapSeverity}
+                    suffix="/100"
+                    color="amber"
+                    icon={Lightbulb}
+                  />
+                  <MetricCard
+                    label="Market Saturation"
+                    value={data.analytics.marketSaturation}
+                    suffix="/100"
+                    color="rose"
+                    icon={Users}
+                  />
+                  <MetricCard
+                    label="Confidence"
+                    value={data.analytics.confidenceLevel}
+                    suffix="/100"
+                    color="blue"
+                    icon={Shield}
+                  />
+                </div>
+
+                {/* Progress bars */}
+                <div className="space-y-3 p-4 rounded-xl bg-slate-900/50 border border-slate-700/50">
+                  <ProgressBar label="Opportunity Score" value={data.analytics.opportunityScore} color="teal" />
+                  <ProgressBar label="Gap Severity" value={data.analytics.gapSeverity} color="amber" />
+                  <ProgressBar label="Market Saturation" value={data.analytics.marketSaturation} color="rose" />
+                </div>
+
+                {/* Secondary info row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg bg-slate-700/40 border border-slate-600/40 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <Users className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-xs text-slate-400 font-medium">Competitors</span>
+                    </div>
+                    <span className="text-xl font-bold text-slate-100">{data.analytics.competitorCount}</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-700/40 border border-slate-600/40 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <Shield className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-xs text-slate-400 font-medium">Entry Barrier</span>
+                    </div>
+                    <span className={`text-base font-bold ${
+                      data.analytics.entryBarrier === 'Low' ? 'text-green-400' :
+                      data.analytics.entryBarrier === 'Medium' ? 'text-amber-400' : 'text-rose-400'
+                    }`}>{data.analytics.entryBarrier}</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-700/40 border border-slate-600/40 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-xs text-slate-400 font-medium">Time to Market</span>
+                    </div>
+                    <span className="text-base font-bold text-slate-100">{data.analytics.timeToMarket}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 6. Your Recommended Angle */}
           <section>
             <SectionHeader icon={Target} title="Your Recommended Angle" />
             <div className="pl-10 p-4 rounded-xl bg-teal-900/30 border border-teal-700/50">

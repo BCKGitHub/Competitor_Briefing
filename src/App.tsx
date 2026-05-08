@@ -115,6 +115,7 @@ function App() {
         dominant_messaging_themes: brief.dominantMessagingThemes,
         the_gap: brief.theGap,
         recommended_angle: brief.recommendedAngle,
+        analytics: brief.analytics || null,
         session_id: sessionId,
       })
       .select('id')
@@ -150,6 +151,7 @@ function App() {
         dominantMessagingThemes: data.dominant_messaging_themes as string[],
         theGap: data.the_gap,
         recommendedAngle: data.recommended_angle,
+        analytics: data.analytics || undefined,
       });
       setQuestion(data.objective);
       setUrls(data.urls || '');

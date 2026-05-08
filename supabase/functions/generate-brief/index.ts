@@ -41,7 +41,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const systemPrompt = `You are ScoutAI, a competitive intelligence analyst. Given a user's research question and optionally scraped webpage content from competitor sites, produce a structured competitive brief.
+    const systemPrompt = `You are ScoutAI, a competitive intelligence analyst. Given a user's research question and optionally scraped webpage content from competitor sites, produce a structured competitive brief with analytics.
 
 You MUST respond with valid JSON matching this exact schema:
 {
@@ -49,7 +49,16 @@ You MUST respond with valid JSON matching this exact schema:
   "whoIsPlaying": ["Company1", "Company2", ...],
   "dominantMessagingThemes": ["Theme 1 description", "Theme 2 description", ...],
   "theGap": "A clear description of the unmet need or market opportunity you've identified",
-  "recommendedAngle": "A specific, actionable positioning recommendation"
+  "recommendedAngle": "A specific, actionable positioning recommendation",
+  "analytics": {
+    "marketSaturation": 65,
+    "opportunityScore": 78,
+    "competitorCount": 6,
+    "gapSeverity": 82,
+    "entryBarrier": "Medium",
+    "timeToMarket": "3-6 months",
+    "confidenceLevel": 74
+  }
 }
 
 Guidelines:
@@ -58,6 +67,14 @@ Guidelines:
 - dominantMessagingThemes: Identify 3-5 messaging patterns used by competitors (be specific, quote phrases where possible)
 - theGap: Identify a genuine unmet need based on the evidence. Be specific about WHO is underserved and WHY
 - recommendedAngle: Give a concrete positioning strategy with target audience, key message, and differentiation
+- analytics: Provide quantitative assessments:
+  - marketSaturation: 0-100 score of how crowded the market is (higher = more saturated)
+  - opportunityScore: 0-100 score of how strong the identified opportunity is (higher = better opportunity)
+  - competitorCount: number of significant competitors identified
+  - gapSeverity: 0-100 score of how severe/unaddressed the gap is (higher = more opportunity)
+  - entryBarrier: "Low", "Medium", or "High" - difficulty of entering this space
+  - timeToMarket: estimated time to capitalize on the gap (e.g., "1-3 months", "3-6 months", "6-12 months")
+  - confidenceLevel: 0-100 score of how confident you are in this analysis (based on data quality)
 
 If scraped content is provided, base your analysis heavily on the actual data. If not, use your knowledge of the market.
 Respond ONLY with the JSON object, no markdown fences or explanation.`;
