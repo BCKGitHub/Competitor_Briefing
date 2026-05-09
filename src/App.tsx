@@ -259,7 +259,7 @@ function App() {
                 htmlFor="question"
                 className="block text-sm font-semibold text-slate-200 mb-2"
               >
-                What do you want to know about your competitors?
+                Which Industry / Market you want to explore? Ask your question or URL of the company you want below
               </label>
               <div className="relative">
                 <Search className="absolute left-4 top-4 w-5 h-5 text-slate-500 pointer-events-none" />
