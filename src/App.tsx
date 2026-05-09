@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Radar, ArrowRight, Globe, RotateCcw } from 'lucide-react';
+import { Search, Radar, ArrowRight, RotateCcw } from 'lucide-react';
 import BriefResultsCard, { type BriefData } from './BriefResultsCard';
 import HistoryPanel, { type BriefHistoryEntry } from './HistoryPanel';
 import { supabase, sessionId } from './supabaseClient';
@@ -273,24 +273,6 @@ function App() {
                 />
               </div>
 
-              <div className="mt-6">
-                <label
-                  htmlFor="urls"
-                  className="flex items-center gap-1.5 text-sm font-medium text-slate-400 mb-2"
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  Paste specific URLs
-                  <span className="text-slate-500 font-normal">(optional)</span>
-                </label>
-                <input
-                  id="urls"
-                  type="text"
-                  value={urls}
-                  onChange={(e) => setUrls(e.target.value)}
-                  placeholder="https://competitor.com/pricing, https://..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-900/60 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 transition-all text-sm"
-                />
-              </div>
 
               <button
                 type="submit"
