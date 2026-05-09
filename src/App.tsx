@@ -41,7 +41,12 @@ async function generateBrief(question: string, scrapedContent: string | null): P
 }
 
 
-function LoadingState({ message }: { message: string }) {
+interface LoadingStep {
+  label: string;
+  status: 'pending' | 'active' | 'done';
+}
+
+function LoadingState({ steps }: { steps: LoadingStep[] }) {
   return (
     <div className="w-full max-w-2xl mx-auto mt-12 animate-fade-in">
       <div className="flex flex-col items-center gap-6">
@@ -61,16 +66,56 @@ function LoadingState({ message }: { message: string }) {
           </div>
         </div>
 
-        <div className="w-full space-y-3 mt-4">
-          <div className="shimmer-bar-dark h-4 rounded-full w-full" />
-          <div className="shimmer-bar-dark h-4 rounded-full w-5/6" />
-          <div className="shimmer-bar-dark h-4 rounded-full w-4/6" />
-          <div className="shimmer-bar-dark h-4 rounded-full w-3/4" />
+        <div className="w-full mt-6 space-y-3">
+          {steps.map((step, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-500 ${
+                step.status === 'done'
+                  ? 'bg-teal-900/30 border-teal-700/50'
+                  : step.status === 'active'
+                  ? 'bg-slate-800/80 border-teal-500/60 shadow-md shadow-teal-900/20'
+                  : 'bg-slate-800/40 border-slate-700/40 opacity-50'
+              }`}
+            >
+              <div className="shrink-0">
+                {step.status === 'done' && (
+                  <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+                {step.status === 'active' && (
+                  <div className="w-6 h-6 rounded-full border-2 border-teal-400 flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-pulse" />
+                  </div>
+                )}
+                {step.status === 'pending' && (
+                  <div className="w-6 h-6 rounded-full border-2 border-slate-600 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-slate-600" />
+                  </div>
+                )}
+              </div>
+              <span className={`text-sm font-medium ${
+                step.status === 'done'
+                  ? 'text-teal-300'
+                  : step.status === 'active'
+                  ? 'text-slate-100'
+                  : 'text-slate-500'
+              }`}>
+                {step.label}
+              </span>
+              {step.status === 'active' && (
+                <div className="ml-auto flex items-center gap-1">
+                  <span className="loading-dot w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
+                  <span className="loading-dot w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
+                  <span className="loading-dot w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-
-        <p className="text-sm text-slate-400 mt-2">
-          {message}
-        </p>
       </div>
     </div>
   );
@@ -86,7 +131,7 @@ function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<BriefHistoryEntry[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState('Analyzing competitors, gathering insights, and building your brief...');
+  const [loadingSteps, setLoadingSteps] = useState<LoadingStep[]>([]);
   const abortRef = useRef(false);
 
   const fetchHistory = useCallback(async () => {
@@ -175,8 +220,25 @@ function App() {
       .map((u) => u.trim())
       .filter((u) => u.startsWith('http'));
 
-    if (parsedUrls.length > 0) {
-      setLoadingMessage('Firecrawl scrapping in progress');
+    const hasScrape = parsedUrls.length > 0;
+
+    const buildSteps = (active: number): LoadingStep[] => {
+      const allSteps = [
+        ...(hasScrape ? [{ label: 'Firecrawl scrapping in progress' }] : []),
+        { label: 'Generating competitive brief with AI' },
+        { label: 'Updating database tables' },
+        { label: 'Rendering results and metrics' },
+      ];
+      return allSteps.map((s, i) => ({
+        ...s,
+        status: i < active ? 'done' as const : i === active ? 'active' as const : 'pending' as const,
+      }));
+    };
+
+    let stepIndex = 0;
+    setLoadingSteps(buildSteps(stepIndex));
+
+    if (hasScrape) {
       try {
         const results = await scrapeUrls(parsedUrls);
         if (abortRef.current) return;
@@ -187,23 +249,31 @@ function App() {
       } catch {
         // continue without scraped content
       }
+      stepIndex++;
+      setLoadingSteps(buildSteps(stepIndex));
     }
 
     if (abortRef.current) return;
-    setLoadingMessage('Generating your competitive brief with AI...');
 
     try {
       const brief = await generateBrief(question, scrapedContent);
       if (abortRef.current) return;
-      setLoadingMessage('Updating database tables');
+
+      stepIndex++;
+      setLoadingSteps(buildSteps(stepIndex));
       setBriefData(brief);
       await saveBrief(question, urls, brief);
-      setLoadingMessage('Rendering results and metrics');
-      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      stepIndex++;
+      setLoadingSteps(buildSteps(stepIndex));
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      setLoadingSteps(buildSteps(stepIndex + 1));
+      await new Promise((resolve) => setTimeout(resolve, 400));
       setAppState('results');
     } catch (err) {
       if (abortRef.current) return;
-      setLoadingMessage(`Error: ${(err as Error).message}. Please try again.`);
+      setLoadingSteps([{ label: `Error: ${(err as Error).message}. Please try again.`, status: 'active' }]);
       setTimeout(() => {
         if (!abortRef.current) setAppState('input');
       }, 3000);
@@ -292,7 +362,7 @@ function App() {
             </form>
           )}
 
-          {appState === 'loading' && <LoadingState message={loadingMessage} />}
+          {appState === 'loading' && <LoadingState steps={loadingSteps} />}
 
           {appState === 'results' && briefData && (
             <div className="space-y-6">
