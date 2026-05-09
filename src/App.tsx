@@ -176,7 +176,7 @@ function App() {
       .filter((u) => u.startsWith('http'));
 
     if (parsedUrls.length > 0) {
-      setLoadingMessage('Scraping competitor URLs with Firecrawl...');
+      setLoadingMessage('Firecrawl scrapping in progress');
       try {
         const results = await scrapeUrls(parsedUrls);
         if (abortRef.current) return;
@@ -195,9 +195,12 @@ function App() {
     try {
       const brief = await generateBrief(question, scrapedContent);
       if (abortRef.current) return;
+      setLoadingMessage('Updating database tables');
       setBriefData(brief);
+      await saveBrief(question, urls, brief);
+      setLoadingMessage('Rendering results and metrics');
+      await new Promise((resolve) => setTimeout(resolve, 600));
       setAppState('results');
-      saveBrief(question, urls, brief);
     } catch (err) {
       if (abortRef.current) return;
       setLoadingMessage(`Error: ${(err as Error).message}. Please try again.`);
